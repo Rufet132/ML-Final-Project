@@ -1,0 +1,311 @@
+% =====================================================================
+% REPORT_TEMPLATE.tex  --  IEEE two-column paper for AI Academy ML Project
+% Compile with:  pdflatex report && pdflatex report
+% =====================================================================
+\documentclass[conference]{IEEEtran}
+% ===== PACKAGES ======================================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+% ===== CODE LISTING STYLE ============================================
+\definecolor{codegreen}{rgb}{0,0.55,0}
+\definecolor{codegray}{rgb}{0.4,0.4,0.4}
+\definecolor{codepurple}{rgb}{0.55,0,0.78}
+\definecolor{backcolour}{rgb}{0.97,0.97,0.97}
+\lstdefinestyle{pythonstyle}{
+  language=Python,
+  backgroundcolor=\color{backcolour},
+  commentstyle=\color{codegreen},
+  keywordstyle=\color{blue},
+  numberstyle=\tiny\color{codegray},
+  stringstyle=\color{codepurple},
+  basicstyle=\ttfamily\footnotesize,
+  breakatwhitespace=false,
+  breaklines=true,
+  keepspaces=true,
+  numbers=left,
+  numbersep=5pt,
+  tabsize=2,
+  frame=single,
+  rulecolor=\color{black!30}
+}
+% ===== TITLE & AUTHORS ===============================================
+\title{Ensemble Methods: Boosting vs.\ Bagging\\ {\large Final Project Report}}
+
+\author{
+\IEEEauthorblockN{Author One, Author Two, Author Three}
+\IEEEauthorblockA{AI Academy, National AI Center\\
+Spring 2026\\
+\{email1, email2, email3\}@example.com}
+}
+
+% =====================================================================
+\begin{document}
+\maketitle
+
+% ----- Abstract -------------------------------------------------------
+\begin{abstract}
+This paper presents an empirical comparison of two ensemble learning
+paradigms---boosting and bagging---using decision‑tree base learners.
+We implement a Decision Tree classifier, AdaBoost (with decision
+stumps), and a Random Forest from scratch.  Controlled experiments on
+real‑world datasets investigate scaling behaviour, noise robustness,
+and bias‑variance decomposition.  Unsupervised analysis (PCA,
+K‑Means, DBSCAN) supplements the visual exploration of the data.
+Our findings show that \emph{[TODO: summarise main result, e.g.,
+“AdaBoost outperforms Random Forest on clean data but is more
+sensitive to label noise”]}.
+
+\textbf{Deliverables:} In addition to this report, we provide the
+complete source code (tagged \texttt{v1.0-final}), a professional
+slide deck for the oral defense, and a separate contribution report
+detailing each team member's specific work.
+\end{abstract}
+
+% ----- Introduction ---------------------------------------------------
+\section{Introduction}
+\label{sec:intro}
+\IEEEPARstart{T}{he} central question of this project is: \textit{``Under
+what conditions does boosting outperform bagging, and vice versa, and
+why?''}  To answer it, we implement the core algorithms from scratch
+and evaluate them on datasets of varying characteristics.
+
+The remainder of the paper is structured as follows.
+Section~\ref{sec:related} reviews essential literature.
+Section~\ref{sec:methods} describes our implementations.
+Section~\ref{sec:experiments} details the experimental setup and
+Section~\ref{sec:results} presents the results.
+Section~\ref{sec:discussion} discusses the findings, and
+Section~\ref{sec:conclusion} concludes.
+The accompanying slide deck and contribution report are submitted
+separately as required by the project brief.
+
+% ----- Related Work ---------------------------------------------------
+\section{Related Work}
+\label{sec:related}
+\subsection{Decision Trees}
+Decision trees recursively partition the feature space to minimise
+impurity~\cite{hastie2009elements}.  CART~\cite{quinlan1986induction}
+uses Gini impurity or entropy.
+
+\subsection{Boosting}
+AdaBoost~\cite{freund1997decision} iteratively re‑weights samples,
+giving higher importance to misclassified instances.  The weight
+update rule is $\alpha_m = \ln\frac{1-\epsilon_m}{\epsilon_m}$ for
+binary classification.
+
+\subsection{Bagging and Random Forests}
+Bagging~\cite{breiman1996bagging} reduces variance by training
+bootstrap replicates.  Random Forests~\cite{breiman2001random} add
+feature sub‑sampling to decorrelate trees further.
+
+\subsection{Unsupervised Techniques}
+PCA~\cite{pearson1901lines} finds directions of maximum variance.
+K‑Means~\cite{lloyd1982least} partitions data into $k$ clusters,
+while DBSCAN~\cite{ester1996density} discovers clusters of arbitrary
+shape based on density.
+
+% ----- Methods --------------------------------------------------------
+\section{Methods}
+\label{sec:methods}
+We implemented all algorithms in Python, using only NumPy (and
+\texttt{sklearn.metrics} for ARI).  The code is available at
+\url{https://github.com/...} (tag \texttt{v1.0‑final}).
+
+\subsection{Decision Tree}
+We follow the CART methodology with exhaustive split search.
+Both Gini impurity and entropy are supported, with \texttt{sample\_weight}
+for the boosting module.
+
+\subsection{AdaBoost}
+The discrete SAMME variant~\cite{hastie2009elements} uses
+depth‑1 stumps.  Sample weights are updated each round and the
+stump is trained on weighted data.
+
+\subsection{Random Forest}
+Bootstrap samples are drawn with replacement.  Trees are grown
+with feature sub‑sampling (\texttt{sqrt} by default).  OOB error
+is computed for each sample using trees where it was not in the
+bootstrap.
+
+\subsection{Unsupervised Pipeline}
+\begin{itemize}
+  \item \textbf{PCA:} Eigen‑decomposition of the covariance matrix.
+  \item \textbf{K‑Means:} Lloyd’s algorithm with multiple restarts.
+  \item \textbf{DBSCAN:} Brute‑force region queries, expanding
+        core points.
+\end{itemize}
+
+% ----- Experiments ----------------------------------------------------
+\section{Experimental Setup}
+\label{sec:experiments}
+\subsection{Datasets}
+We use three datasets (Table~\ref{tab:datasets}).
+\begin{table}[h]
+\centering
+\caption{Datasets used in the study.}
+\label{tab:datasets}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Dataset} & \textbf{Samples} & \textbf{Features}\\
+\midrule
+Breast Cancer Wisconsin & 569 & 30\\
+Adult Income & 48\,842 & 14\\
+Covertype (subset) & 5\,000 & 54\\
+\bottomrule
+\end{tabular}
+\end{table}
+% TODO: replace with actual datasets used.
+
+\subsection{Preprocessing}
+Features were standardised (zero mean, unit variance).  Missing values
+were dropped/imputed (justify).  For the imbalanced Covertype subset,
+we applied random oversampling of the minority class.
+
+\subsection{Metrics}
+We report accuracy, macro F1, and AUC‑ROC (micro‑averaged for
+multi‑class).  All experiments use 5‑fold cross‑validation with
+a fixed random seed (42).
+
+\subsection{Experiments}
+\begin{enumerate}
+  \item \textbf{Baseline:} Single tree vs.\ sklearn reference.
+  \item \textbf{AdaBoost scaling:} 1--200 stumps.
+  \item \textbf{Random Forest scaling:} varying trees and depth.
+  \item \textbf{Head‑to‑head:} 100 estimators, 5‑fold CV.
+  \item \textbf{Noise robustness:} 5\%, 10\%, 20\% label noise.
+  \item \textbf{Bias‑variance decomposition:} 100 bootstrap
+        replicates.
+  \item \textbf{Unsupervised analysis:} PCA scree, elbow,
+        k‑distance plots.
+\end{enumerate}
+
+% ----- Results --------------------------------------------------------
+\section{Results}
+\label{sec:results}
+% TODO: replace with actual figures and tables.
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{figures/example_scaling.pdf}
+\caption{Test accuracy vs.\ number of estimators. (Placeholder)}
+\label{fig:scaling}
+\end{figure}
+
+Table~\ref{tab:headtohead} summarises the head‑to‑head comparison.
+\begin{table}[h]
+\centering
+\caption{5‑fold CV results (mean $\pm$ std). (Placeholder)}
+\label{tab:headtohead}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Model} & \textbf{Accuracy} & \textbf{F1} & \textbf{AUC}\\
+\midrule
+Single Tree & 0.85$\pm$0.02 & 0.84$\pm$0.03 & 0.91$\pm$0.02\\
+AdaBoost & 0.92$\pm$0.01 & 0.91$\pm$0.02 & 0.96$\pm$0.01\\
+Random Forest & 0.93$\pm$0.01 & 0.92$\pm$0.01 & 0.97$\pm$0.01\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The noise robustness experiment (Fig.~\ref{fig:noise}) shows
+\emph{[TODO: describe observation]}.  The bias‑variance
+decomposition (Table~\ref{tab:biasvar}) confirms that boosting
+reduces bias while bagging reduces variance.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{figures/example_noise.pdf}
+\caption{Accuracy degradation under label noise. (Placeholder)}
+\label{fig:noise}
+\end{figure}
+
+\begin{table}[h]
+\centering
+\caption{Bias‑variance decomposition on Breast Cancer dataset.
+(Placeholder)}
+\label{tab:biasvar}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Model} & \textbf{Bias$^2$} & \textbf{Variance}\\
+\midrule
+AdaBoost & 0.05 & 0.10\\
+Random Forest & 0.08 & 0.06\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ----- Discussion -----------------------------------------------------
+\section{Discussion}
+\label{sec:discussion}
+\emph{[TODO: interpret results, answer the central question, discuss
+when boosting outperforms bagging and why.  Relate to dataset
+characteristics (noise, dimensionality, class imbalance).  Comment
+on unsupervised findings: do cluster structures correlate with
+classifier performance?]}
+
+% ----- Conclusion -----------------------------------------------------
+\section{Conclusion}
+\label{sec:conclusion}
+\emph{[TODO: summarise key findings, mention limitations, and suggest
+future work (e.g., Gradient Boosting, t‑SNE).]}
+
+% ===== BIBLIOGRAPHY ===================================================
+\begin{thebibliography}{00}
+
+\bibitem{hastie2009elements}
+T.~Hastie, R.~Tibshirani, and J.~Friedman,
+\textit{The Elements of Statistical Learning}, 2nd ed.
+Springer, 2009.
+[Online]. Available: \url{https://hastie.su.domains/ElemStatLearn/}
+
+\bibitem{quinlan1986induction}
+J.~R.~Quinlan,
+``Induction of decision trees,''
+\textit{Machine Learning}, vol.~1, no.~1, pp.~81--106, 1986.
+
+\bibitem{freund1997decision}
+Y.~Freund and R.~E.~Schapire,
+``A decision-theoretic generalization of on-line learning and an
+application to boosting,''
+\textit{J. Comput. Syst. Sci.}, vol.~55, no.~1, pp.~119--139, 1997.
+
+\bibitem{breiman1996bagging}
+L.~Breiman,
+``Bagging predictors,''
+\textit{Machine Learning}, vol.~24, no.~2, pp.~123--140, 1996.
+
+\bibitem{breiman2001random}
+L.~Breiman,
+``Random forests,''
+\textit{Machine Learning}, vol.~45, no.~1, pp.~5--32, 2001.
+
+\bibitem{pearson1901lines}
+K.~Pearson,
+``On lines and planes of closest fit to systems of points in space,''
+\textit{Philosophical Magazine}, vol.~2, no.~11, pp.~559--572, 1901.
+
+\bibitem{lloyd1982least}
+S.~P.~Lloyd,
+``Least squares quantization in PCM,''
+\textit{IEEE Trans. Inf. Theory}, vol.~28, no.~2, pp.~129--137, 1982.
+
+\bibitem{ester1996density}
+M.~Ester, H.-P.~Kriegel, J.~Sander, and X.~Xu,
+``A density-based algorithm for discovering clusters in large
+spatial databases with noise,''
+in \textit{Proc. 2nd ACM SIGKDD}, 1996, pp.~226--231.
+
+\end{thebibliography}
+
+% ===== APPENDICES (optional) ==========================================
+% \appendices
+% \section{Code snippets}
+% \lstinputlisting[style=pythonstyle]{../src/trees/decision_tree.py}
+
+\end{document}
