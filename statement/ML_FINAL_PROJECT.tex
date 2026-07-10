@@ -1,0 +1,651 @@
+% =====================================================================
+% AI Academy -- National AI Center
+% Machine Learning -- Final Project Brief (v3 - Revised + Slides + Contribution Report)
+% Compiles with pdfLaTeX.
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+% ===== CONFIGURATION =================================================
+\newcommand{\coursename}{Machine Learning}
+\newcommand{\institution}{AI Academy, National AI Center}
+\newcommand{\semester}{Spring 2026}
+\newcommand{\projecttitle}{Ensemble Methods: Boosting vs.\ Bagging}
+\newcommand{\releasedate}{June 30, 2026}
+\newcommand{\duedate}{July 16, 2026 at 23:59 (UTC+4)}
+\newcommand{\version}{v3.0}
+% ===== PACKAGES ======================================================
+\usepackage[margin=2.2cm,headheight=15pt]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[final,protrusion=true,expansion=false]{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{ragged2e}
+\usepackage{enumitem}
+\usepackage[parfill]{parskip}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage[hidelinks]{hyperref}
+\usepackage{etoolbox}
+\usepackage{xspace}
+\emergencystretch=3em
+\hbadness=10000
+\hfuzz=2pt
+\hypersetup{
+  colorlinks=true,
+  linkcolor=NavyBlue,
+  urlcolor=NavyBlue,
+  citecolor=NavyBlue,
+  pdftitle={\coursecode\ Final Project Brief},
+  pdfauthor={\institution}
+}
+% ===== STYLING =======================================================
+\definecolor{accent}{HTML}{0B3D91}
+\definecolor{accent2}{HTML}{8B0000}
+\definecolor{soft}{HTML}{F2F4F8}
+\titleformat{\section}
+  {\Large\bfseries\color{accent}}{\thesection.}{0.6em}{}
+\titleformat{\subsection}
+  {\large\bfseries\color{accent}}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\color{accent!85!black}}{\thesubsubsection}{0.4em}{}
+\newcommand{\warn}[1]{\textcolor{accent2}{\textbf{#1}}}
+\newtcolorbox{infobox}[1][]{
+  colback=soft, colframe=accent, boxrule=0.6pt,
+  arc=2pt, left=8pt, right=8pt, top=6pt, bottom=6pt,
+  fonttitle=\bfseries\color{white},
+  colbacktitle=accent, title=#1
+}
+\newtcolorbox{warnbox}[1][]{
+  colback=accent2!5, colframe=accent2, boxrule=0.6pt,
+  arc=2pt, left=8pt, right=8pt, top=6pt, bottom=6pt,
+  fonttitle=\bfseries\color{white},
+  colbacktitle=accent2, title=#1
+}
+\newtcolorbox{rubricbox}{
+  colback=white, colframe=black!40, boxrule=0.4pt,
+  arc=1pt, left=8pt, right=8pt, top=4pt, bottom=4pt,
+  fontupper=\small
+}
+\definecolor{codegreen}{rgb}{0,0.55,0}
+\definecolor{codegray}{rgb}{0.4,0.4,0.4}
+\definecolor{codepurple}{rgb}{0.55,0,0.78}
+\definecolor{backcolour}{rgb}{0.97,0.97,0.97}
+\lstdefinestyle{python}{
+  language=Python,
+  backgroundcolor=\color{backcolour},
+  commentstyle=\color{codegreen},
+  keywordstyle=\color{accent},
+  numberstyle=\tiny\color{codegray},
+  stringstyle=\color{codepurple},
+  basicstyle=\ttfamily\footnotesize,
+  breakatwhitespace=false,
+  breaklines=true,
+  keepspaces=true,
+  numbers=left,
+  numbersep=6pt,
+  tabsize=2,
+  frame=single,
+  framerule=0.4pt,
+  rulecolor=\color{black!30},
+}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{\coursecode\ -- Final Project}}
+\fancyhead[R]{\small\textit{\semester}}
+\fancyfoot[L]{\small\textit{\institution}}
+\fancyfoot[R]{\small Page \thepage\ of \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+% =====================================================================
+\begin{document}
+\begin{center}
+{\small \textsc{\institution} \\[0.2em] { \coursename\ -- \semester}}\\[1.2em]
+{\Large\bfseries\color{accent} Final Project Brief}\\[0.3em]
+{\LARGE\bfseries \projecttitle}\\[1em]
+\rule{0.85\textwidth}{0.6pt}
+\end{center}
+\begin{tabularx}{\textwidth}{@{}lXlX@{}}
+\textbf{Released:} & \releasedate & \textbf{Due:} & \textcolor{accent2}{\textbf{\duedate}} \\
+\textbf{Team size:} & 3 students (2 or 4 with approval) & \textbf{Workload:} & $\sim$35--40 person-hours over 12 days \\
+\textbf{Version:} & \version & \textbf{Submission:} & GitHub repo + Moodle + oral defense \\
+\end{tabularx}
+\vspace{0.4em}\hrule\vspace{0.6em}
+\begin{infobox}[At a glance]
+\textbf{What this project is.} You will implement, from scratch, three machine learning algorithms: a \textbf{Decision Tree}, an \textbf{AdaBoost classifier} (which uses a depth-1 Decision Tree --- a decision stump --- as its weak learner), and a \textbf{Random Forest} (which uses bagging over full Decision Trees). You will then run a controlled empirical study comparing the two ensemble philosophies --- boosting vs.\ bagging --- using real-world datasets, and support your analysis with \textbf{unsupervised learning techniques} (PCA, K-Means, DBSCAN) to explore and visualize the data before and after classification.
+\smallskip
+\textbf{What it is NOT.} You may not use \texttt{sklearn}'s \texttt{DecisionTreeClassifier}, \texttt{AdaBoostClassifier}, or \texttt{RandomForestClassifier} as your primary implementations. You may use them \emph{only} as a sanity-check baseline to compare against your own output.
+\smallskip
+\textbf{Four deliverables, one deadline.} On \textcolor{accent2}{\textbf{\duedate}} you submit one archive to Moodle containing:
+\begin{enumerate}[topsep=2pt,itemsep=1pt,leftmargin=2.2em]
+  \item Source \textbf{code} (GitHub tag \texttt{v1.0-final})
+  \item Compiled \textbf{paper} (\texttt{report/report.pdf}), IEEE style
+  \item Professional \textbf{slide deck} (\texttt{presentation/presentation.pdf})
+  \item A scheduled \textbf{oral defense} (presentation with slides)
+\end{enumerate}
+\end{infobox}
+\tableofcontents
+\vspace{0.6em}\hrule\vspace{0.4em}
+% =====================================================================
+\section{Motivation and Background Reading}\label{sec:background}
+The central question this project asks you to answer empirically is:
+\begin{center}
+\textit{``Under what conditions does boosting outperform bagging, and vice versa, and why?''}
+\end{center}
+To answer it rigorously you must first understand what each approach does at a mathematical level. The references below are \textbf{required reading} before you write a single line of code. Rather than original papers alone, we point you to the relevant chapters of \textit{The Elements of Statistical Learning} (ESL, Hastie, Tibshirani \& Friedman, 2nd ed., freely available at \url{https://hastie.su.domains/ElemStatLearn/}) as the primary source, supplemented by the original papers where the ESL treatment is thin.
+
+\subsection{Required Reading}
+\begin{enumerate}[topsep=2pt,itemsep=6pt,leftmargin=2.2em]
+  \item \textbf{Decision Trees (CART)}\\
+  ESL Chapter~9.2 (``Tree-Based Methods'').\\
+  Original reference (supplementary): Quinlan, J.\,R. (1986). Induction of decision trees.
+  \textit{Machine Learning}, 1(1), 81--106.\\
+  \url{https://link.springer.com/article/10.1007/BF00116251}
+
+  \item \textbf{AdaBoost and Boosting}\\
+  ESL Chapter~10 (``Boosting and Additive Trees''), Sections 10.1--10.6.\\
+  Original reference (supplementary): Freund, Y., \& Schapire, R.\,E. (1997). A decision-theoretic generalization of on-line learning
+  and an application to boosting. \textit{Journal of Computer and System Sciences}, 55(1), 119--139.\\
+  \url{https://www.sciencedirect.com/science/article/pii/S002200009791504X}
+
+  \item \textbf{Bagging and Random Forests}\\
+  ESL Chapter~8.7 (``Bagging'') and Chapter~15 (``Random Forests'').\\
+  Original references (supplementary):\\
+  Breiman, L. (1996). Bagging predictors. \textit{Machine Learning}, 24(2), 123--140.\\
+  \url{https://link.springer.com/article/10.1007/BF00058655}\\[2pt]
+  Breiman, L. (2001). Random forests. \textit{Machine Learning}, 45(1), 5--32.\\
+  \url{https://link.springer.com/article/10.1023/A:1010933404324}
+
+  \item \textbf{Bias--Variance Tradeoff}\\
+  ESL Chapter~7.3 (``The Bias--Variance Decomposition'').
+  \url{https://www.sas.upenn.edu/~fdiebold/NoHesitations/BookAdvanced.pdf}
+
+  \item \textbf{PCA}\\
+  ESL Chapter~14.5.1 (``Principal Components'').\\
+  Original reference (supplementary): Pearson, K. (1901). On lines and planes of closest fit to systems of points in space.
+  \textit{Philosophical Magazine}, 2(11), 559--572.
+  \url{https://www.sas.upenn.edu/~fdiebold/NoHesitations/BookAdvanced.pdf}
+
+  \item \textbf{K-Means Clustering}\\
+  ESL Chapter~14.3 (``Cluster Analysis''), Section~14.3.6 (``K-Means Clustering'').\\
+  Original reference (supplementary): Lloyd, S.\,P. (1982). Least squares quantization in PCM. \textit{IEEE Transactions on Information
+  Theory}, 28(2), 129--137.\\
+  \url{https://ieeexplore.ieee.org/document/1056489}
+
+  \item \textbf{DBSCAN}\\
+  ESL does not cover DBSCAN in depth; read the original paper directly:\\
+  Ester, M., Kriegel, H.-P., Sander, J., \& Xu, X. (1996). A density-based algorithm for discovering
+  clusters in large spatial databases with noise. \textit{Proceedings of the 2nd ACM SIGKDD}, 226--231.\\
+  \url{https://dl.acm.org/doi/10.5555/3001460.3001507}
+\end{enumerate}
+
+\begin{warnbox}[Read the chapters, not just the headings]
+The oral defense will include questions drawn directly from the material above. You will be expected to explain: the AdaBoost weight update rule, why bootstrapping reduces variance, the Gini impurity criterion, and the difference between density-based and centroid-based clustering. Questions will only cover topics addressed in the course presentations and the reading list above.
+\end{warnbox}
+% =====================================================================
+\section{What You Will Implement}\label{sec:impl}
+\subsection{Module 1 --- Decision Tree Classifier}
+Implement a \textbf{binary Decision Tree} for classification from scratch as a Python class. The tree must handle continuous features only (no categorical splits with encoding tricks). The algorithm follows the CART (Classification and Regression Trees) methodology.
+\subsubsection{Interface contract}
+\begin{lstlisting}[style=python]
+class DecisionTree:
+    def __init__(
+        self,
+        max_depth: int = None,
+        min_samples_split: int = 2,
+        criterion: str = "gini",        # "gini" or "entropy"
+        max_features: int | str | None = None,  # for Random Forest
+        random_state: int | None = None,
+    ) -> None: ...
+    def fit(self, X: np.ndarray, y: np.ndarray) -> "DecisionTree": ...
+    def predict(self, X: np.ndarray) -> np.ndarray: ...
+    def predict_proba(self, X: np.ndarray) -> np.ndarray: ...
+    # Introspection (useful for your analysis)
+    @property
+    def depth(self) -> int: ...
+    @property
+    def n_leaves(self) -> int: ...
+    def feature_importances(self) -> np.ndarray: ...
+\end{lstlisting}
+\subsubsection{Detailed Implementation Steps}
+\begin{enumerate}[leftmargin=2.2em,label=\textbf{DT.\arabic*}]
+  \item \textbf{Node structure.} Each node stores:
+    \begin{itemize}
+      \item \texttt{feature\_index} (int): which feature to split on
+      \item \texttt{threshold} (float): split threshold
+      \item \texttt{left}, \texttt{right} (Node): child nodes
+      \item \texttt{value} (np.ndarray of shape [n\_classes]): class distribution at leaf; for internal nodes, this is the prediction if the tree were truncated at this depth (useful for \texttt{predict\_proba}).
+      \item \texttt{samples} (int): number of training samples that reach this node.
+    \end{itemize}
+  \item \textbf{Splitting criterion.}
+    \begin{itemize}
+      \item \textbf{Gini impurity:} $I_G(p) = 1 - \sum_{c=1}^C p_c^2$.
+      \item \textbf{Information gain (entropy):} $I_E(p) = -\sum_{c=1}^C p_c \log_2(p_c + \epsilon)$.
+      \item Impurity reduction: $\Delta I = I(parent) - \frac{N_{left}}{N} I(left) - \frac{N_{right}}{N} I(right)$.
+      \item Choose the split (feature $j$, threshold $t$) that maximizes $\Delta I$.
+    \end{itemize}
+  \item \textbf{Finding the best split (exhaustive search).}
+    \begin{itemize}
+      \item For each continuous feature $j$:
+        \begin{enumerate}
+          \item Sort the unique values of $X_{[:,j]}$.
+          \item Consider thresholds halfway between consecutive distinct values: $t = (v_k + v_{k+1})/2$.
+          \item For each threshold, compute the impurity reduction. To avoid scanning all samples each time, maintain sorted order and accumulate counts incrementally (efficient $O(N \log N)$ per feature).
+          \item If \texttt{max\_features} is set, randomly select a subset of features (without replacement) at each node, using \texttt{random\_state} for reproducibility.
+        \end{enumerate}
+      \item Handle the degenerate case: if no split reduces impurity, or if all samples belong to one class, or \texttt{min\_samples\_split} is violated, the node becomes a leaf.
+    \end{itemize}
+  \item \textbf{Stopping criteria.}
+    \begin{itemize}
+      \item \texttt{max\_depth} reached.
+      \item Number of samples at node < \texttt{min\_samples\_split}.
+      \item All samples have identical class labels (pure node).
+      \item All samples have identical feature vectors (no valid split).
+    \end{itemize}
+  \item \textbf{Prediction.}
+    \begin{itemize}
+      \item \texttt{predict}: traverse tree, return the majority class (argmax of class counts in leaf \texttt{value}).
+      \item \texttt{predict\_proba}: return normalized class counts (empirical probabilities).
+    \end{itemize}
+  \item \textbf{Feature importances.} Compute the normalized total impurity reduction attributed to each feature across all splits in the tree. (Sum of $\Delta I$ for each split, divided by total reduction.)
+  \item \textbf{Repr.} \texttt{\_\_repr\_\_} for trees of depth $\le 4$ prints an indented text tree showing feature, threshold, gini/entropy value, samples, and class distribution at each node.
+\end{enumerate}
+\subsubsection{Testing and Sanity Checks}
+\begin{itemize}
+  \item Unit test on a tiny 2D dataset (e.g., XOR, or two Gaussians) with known split.
+  \item Compare accuracy, depth, and feature importances against \texttt{sklearn.tree.DecisionTreeClassifier} (using same parameters, excluding random seed differences). Agreement must be within 2\%.
+  \item Test edge cases: dataset with single feature, all identical labels, \texttt{min\_samples\_split}=1, \texttt{max\_depth}=0 (stump).
+\end{itemize}
+\subsection{Module 2 --- AdaBoost with Decision Stumps}
+Implement \textbf{AdaBoost} (the discrete SAMME variant, suitable for binary classification) using depth-1 \texttt{DecisionTree} instances (decision stumps) as weak learners.
+\subsubsection{Interface contract}
+\begin{lstlisting}[style=python]
+class DecisionStump(DecisionTree):
+    """Convenience subclass: max_depth=1, single binary split."""
+    def __init__(self, criterion: str = "gini", random_state: int | None = None) -> None:
+        super().__init__(max_depth=1, criterion=criterion, random_state=random_state)
+class AdaBoostClassifier:
+    def __init__(
+        self,
+        n_estimators: int = 50,
+        learning_rate: float = 1.0,
+        criterion: str = "gini",
+        random_state: int | None = None,
+    ) -> None: ...
+    def fit(self, X: np.ndarray, y: np.ndarray) -> "AdaBoostClassifier": ...
+    def predict(self, X: np.ndarray) -> np.ndarray: ...
+    def predict_proba(self, X: np.ndarray) -> np.ndarray: ...
+    # For analysis
+    @property
+    def estimator_weights(self) -> np.ndarray: ...
+    @property
+    def estimator_errors(self) -> np.ndarray: ...
+    def staged_predict(self, X: np.ndarray) -> Iterator[np.ndarray]: ...
+\end{lstlisting}
+\subsubsection{Mathematical Algorithm}
+Initialize sample weights $w_i^{(1)} = 1/N$ for $i=1,\dots,N$.
+For $m = 1$ to $M$ (n\_estimators):
+\begin{enumerate}[leftmargin=*,label=(\roman*)]
+  \item Fit a stump $h_m(x)$ to the training data weighted by $w^{(m)}$. Because the stump must handle weighted samples, you need to modify your \texttt{DecisionTree} fit to accept an argument \texttt{sample\_weight}. Weighted impurity is computed using weighted class counts: $p_c = \sum_{i:y_i=c} w_i / \sum_i w_i$.
+  \item Compute weighted error: $\epsilon_m = \sum_{i=1}^N w_i^{(m)} \mathbf{1}[h_m(x_i) \neq y_i] / \sum_i w_i^{(m)}$.
+  \item If $\epsilon_m = 0$, set $\epsilon_m = 10^{-10}$ (clipping to avoid division by zero). If $\epsilon_m \ge 0.5$, stop the algorithm (or raise \texttt{ValueError} if early termination is not acceptable for analysis; you may optionally continue by resetting weights, but document the choice).
+  \item Compute estimator weight: $\alpha_m = \ln\frac{1-\epsilon_m}{\epsilon_m} + \ln(K-1)$, where $K$ is number of classes. For binary classification $K=2$ this simplifies to $\alpha_m = \ln\frac{1-\epsilon_m}{\epsilon_m}$.
+  \item Update sample weights: $w_i^{(m+1)} = w_i^{(m)} \exp(\alpha_m \cdot \mathbf{1}[h_m(x_i) \neq y_i])$, then normalize.
+  \item Store $h_m$ and $\alpha_m$.
+\end{enumerate}
+Final prediction: $\hat{y} = \arg\max_k \sum_{m=1}^M \alpha_m \mathbf{1}[h_m(x)=k]$.
+For \texttt{predict\_proba}, soft voting is often done via weighted average of probabilities, but for discrete SAMME you can compute class-wise sums of $\alpha_m$ for each class prediction and normalize (exponential softmax of weighted votes may also be used; document your approach).
+\subsubsection{Implementation Details}
+\begin{itemize}
+  \item \texttt{fit} must accept an optional \texttt{sample\_weight} parameter in the stump. Modify your \texttt{DecisionTree} class to incorporate weights (default uniform). Weighted Gini: $I_G = 1 - \sum_c (\sum_{i:y_i=c} w_i / \sum_i w_i)^2$.
+  \item The stump training at each iteration must respect \texttt{random\_state} passed to AdaBoost. Seed a separate generator per round based on \texttt{random\_state} + $m$.
+  \item \texttt{staged\_predict}: yields predictions after each boosting round. For example, list of arrays [prediction after round 1, after round 2, ...].
+  \item Store \texttt{estimator\_weights} ($\alpha_m$ array) and \texttt{estimator\_errors} ($\epsilon_m$ array).
+\end{itemize}
+\subsection{Module 3 --- Random Forest}
+Implement \textbf{Random Forest} using bootstrap aggregation (bagging) over \texttt{DecisionTree} instances with feature sub-sampling.
+\subsubsection{Interface contract}
+\begin{lstlisting}[style=python]
+class RandomForestClassifier:
+    def __init__(
+        self,
+        n_estimators: int = 100,
+        max_depth: int | None = None,
+        max_features: int | str = "sqrt",   # int, "sqrt", "log2", or None
+        min_samples_split: int = 2,
+        bootstrap: bool = True,
+        oob_score: bool = False,
+        n_jobs: int = 1,              # parallelism with multiprocessing
+        random_state: int | None = None,
+    ) -> None: ...
+    def fit(self, X: np.ndarray, y: np.ndarray) -> "RandomForestClassifier": ...
+    def predict(self, X: np.ndarray) -> np.ndarray: ...
+    def predict_proba(self, X: np.ndarray) -> np.ndarray: ...
+    @property
+    def oob_score_(self) -> float: ...             # if oob_score=True
+    @property
+    def feature_importances_(self) -> np.ndarray: ...
+\end{lstlisting}
+\subsubsection{Algorithm Steps}
+\begin{enumerate}[leftmargin=2.2em,label=\textbf{RF.\arabic*}]
+  \item \textbf{Bootstrap sampling.} For each tree $t = 1\dots T$, draw a bootstrap sample $\mathcal{D}_t$ of size $N$ from the original dataset $\mathcal{D}$ with replacement. Record the out-of-bag (OOB) indices: samples not included in $\mathcal{D}_t$.
+  \item \textbf{Tree training.} Train a \texttt{DecisionTree} with parameters \texttt{max\_depth}, \texttt{min\_samples\_split}, \texttt{max\_features} (e.g., \texttt{"sqrt"} means $\lfloor\sqrt{p}\rfloor$ features randomly chosen at each split). Set \texttt{random\_state} derived from the forest's seed and tree index to ensure reproducibility.
+  \item \textbf{Parallelization.} When \texttt{n\_jobs} $> 1$, use \texttt{multiprocessing.Pool} to parallelize the training loop over trees. Ensure random states are properly set for each worker to guarantee identical results across runs with the same \texttt{random\_state}. Implement a sequential baseline for timing comparison.
+  \item \textbf{OOB score.} If \texttt{oob\_score=True}, compute OOB predictions: for each sample $i$, aggregate predictions only from trees for which $i$ was OOB. Majority vote gives OOB class; OOB accuracy is fraction correct. Store as \texttt{oob\_score\_}.
+  \item \textbf{Prediction.} \texttt{predict}: majority vote across trees. \texttt{predict\_proba}: average of probability vectors from each tree.
+  \item \textbf{Feature importances.} Average the feature importances of all trees.
+\end{enumerate}
+\subsection{Module 4 --- Unsupervised Analysis Pipeline}
+Implement three algorithms from scratch. Use NumPy only (except for the ARI metric which may be imported from \texttt{sklearn.metrics}). This pipeline is mandatory and will be graded; its findings must be discussed in the report. The interfaces below show the expected methods, their arguments, return types, and a short description. \textbf{Do not copy-paste implementations; you must write the logic yourself.}
+
+\subsubsection{PCA}
+\begin{lstlisting}[style=python, label=lst:pca]
+class PCA:
+    # n_components: int -- number of principal components to retain
+    # .components_      : np.ndarray (n_components, n_features) -- top eigenvectors
+    # .explained_variance_ratio_ : np.ndarray (n_components,) -- variance fraction per component
+    def __init__(self, n_components: int) -> None: ...
+    def fit(self, X: np.ndarray) -> "PCA": ...            # compute cov matrix, eigen-decomp
+    def transform(self, X: np.ndarray) -> np.ndarray: ...  # project onto components
+    def fit_transform(self, X: np.ndarray) -> np.ndarray: ...
+\end{lstlisting}
+\vspace{0.4em}
+\textbf{Required visualisation and analysis:}
+\begin{itemize}
+  \item For each dataset, compute the scree plot (cumulative explained variance).
+  \item Project data to the first 2 PCs, then create scatter plots colored by (a) true class labels, (b) K-Means cluster labels, (c) DBSCAN cluster labels.
+\end{itemize}
+
+\subsubsection{K-Means}
+\begin{lstlisting}[style=python, label=lst:kmeans]
+class KMeans:
+    # n_clusters: int; max_iter=300; tol=1e-4; random_state: int|None
+    # .centroids_ : np.ndarray (n_clusters, n_features)
+    # .labels_    : np.ndarray (n_samples,)
+    # .inertia_   : float -- sum of squared distances to centroids
+    def __init__(self, n_clusters: int, max_iter: int = 300,
+                 tol: float = 1e-4, random_state: int | None = None) -> None: ...
+    def fit(self, X: np.ndarray) -> "KMeans": ...   # Lloyd's algorithm
+\end{lstlisting}
+\vspace{0.4em}
+\textbf{Required visualisation and analysis:}
+\begin{itemize}
+  \item Elbow method: for $k = 1$ to $10$ (with multiple restarts, e.g., 10, keeping the lowest inertia), plot inertia vs $k$.
+  \item Report Adjusted Rand Index (ARI) against true labels using \texttt{sklearn.metrics.adjusted\_rand\_score}.
+\end{itemize}
+
+\subsubsection{DBSCAN}
+\begin{lstlisting}[style=python, label=lst:dbscan]
+class DBSCAN:
+    # eps: float -- neighbourhood radius; min_samples: int -- core-point threshold
+    # .labels_ : np.ndarray (n_samples,) -- cluster ids; -1 = noise
+    def __init__(self, eps: float, min_samples: int) -> None: ...
+    def fit(self, X: np.ndarray) -> "DBSCAN": ...   # density-based clustering
+\end{lstlisting}
+\vspace{0.4em}
+\textbf{Required visualisation and analysis:}
+\begin{itemize}
+  \item k-distance plot: for each point compute the distance to its $k$-th nearest neighbour (set $k = \texttt{min\_samples}$). Sort distances ascending and plot; choose $\varepsilon$ near the ``knee''.
+  \item Report ARI against true labels and the fraction of points labelled as noise.
+  \item Compare cluster quality with K-Means.
+\end{itemize}
+
+\medskip
+\noindent The above interfaces are binding. All required visualisation steps (scree, elbow, k-distance) must be reproducible via \texttt{run\_all.py}.
+% =====================================================================
+\section{Experimental Study Design}\label{sec:experiments}
+\subsection{Datasets}
+Use at least \textbf{three datasets} of varying characteristics. You must justify your selection in the report. Suggested sources with direct links are given below. \textbf{Important:} some dataset names appear in multiple repositories; use the exact links and note the version you downloaded.
+\begin{center}\small
+\begin{tabular}{llll}
+\toprule
+\textbf{Dataset} & \textbf{Task} & \textbf{Size} & \textbf{Link / Source} \\
+\midrule
+\href{https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_breast_cancer.html}{Breast Cancer Wisconsin} & Binary & 569 & \texttt{sklearn.datasets} \\
+\href{https://archive.ics.uci.edu/ml/datasets/adult}{Adult Income} & Binary, imbalanced & 48\,842 & UCI Repository \\
+\href{https://archive.ics.uci.edu/ml/datasets/covertype}{Covertype (subset)} & Multi-class & $\geq$5000 & UCI Repository \\
+\href{https://scikit-learn.org/stable/modules/generated/sklearn.datasets.fetch_openml.html}{MNIST (2-class subset)} & High-dim & $\geq$5000 & \texttt{sklearn.datasets} (fetch\_openml) \\
+\bottomrule
+\end{tabular}
+\end{center}
+\warn{You must include at least one dataset with severe class imbalance (minority class $\le 1\%$ of total) and at least one high-dimensional dataset ($>$20 features).}
+\begin{warnbox}[Class Imbalance Treatment]
+If a dataset exhibits severe class imbalance, you are expected to apply and document an appropriate treatment strategy (e.g.\ random oversampling, SMOTE, class weights in the loss/impurity). This topic has been covered in a dedicated class; the report should briefly explain the chosen method and justify why it is suitable for the data.
+\end{warnbox}
+\subsection{Preprocessing}
+\begin{itemize}
+  \item Standardize numerical features to zero mean, unit variance (use \texttt{StandardScaler} from sklearn, or implement your own). Fit scaler on training data only, then transform test.
+  \item Handle missing values by either removing rows or imputing (justify your choice).
+  \item For multi-class datasets, you may binarize or keep as multi-class. AdaBoost must support binary classification; implement one-vs-rest or SAMME.R as needed.
+\end{itemize}
+\subsection{Experiments to run}
+For each dataset, run and report all of the following. All random seeds must be fixed (e.g., 42) for reproducibility. Every experiment must be fully reproducible by \texttt{python src/experiments/run\_all.py}.
+\begin{enumerate}[topsep=2pt,itemsep=4pt,leftmargin=2.2em]
+  \item \textbf{Baseline.}
+    \begin{itemize}
+      \item Train a single unpruned \texttt{DecisionTree} (your implementation) on an 80/20 train/test split.
+      \item Train a depth-1 stump (\texttt{DecisionStump}).
+      \item Train \texttt{sklearn.tree.DecisionTreeClassifier} with identical parameters.
+      \item Report accuracy, F1 (macro), and AUC-ROC (for binary) or macro-averaged AUC for multi-class. Verify your tree matches sklearn within 2\%.
+    \end{itemize}
+  \item \textbf{AdaBoost scaling.}
+    \begin{itemize}
+      \item Vary \texttt{n\_estimators} from 1 to 200 (step 5 or 10).
+      \item For each number, record test accuracy and training accuracy using \texttt{staged\_predict}.
+      \item Plot training error and test error vs.\ number of estimators. Observe if and when AdaBoost overfits.
+    \end{itemize}
+  \item \textbf{Random Forest scaling.}
+    \begin{itemize}
+      \item (a) Fix \texttt{max\_depth=None}, vary \texttt{n\_estimators} from 1 to 200. Plot test accuracy.
+      \item (b) Fix \texttt{n\_estimators}=100, vary \texttt{max\_depth} from 1 to 20. Plot test accuracy.
+      \item If \texttt{oob\_score=True}, also plot OOB accuracy alongside test accuracy. Discuss the relationship.
+    \end{itemize}
+  \item \textbf{Head-to-head comparison (fixed resources).}
+    \begin{itemize}
+      \item Set $n\_\text{estimators}=100$ for both ensembles.
+      \item 5-fold cross-validation. For each fold compute accuracy, macro F1, and AUC-ROC.
+      \item Report mean $\pm$ standard deviation for: single tree, AdaBoost, Random Forest, and \texttt{sklearn.ensemble.RandomForestClassifier} (as reference). Use box plots or tables.
+    \end{itemize}
+  \item \textbf{Noise robustness.}
+    \begin{itemize}
+      \item Randomly flip a fraction $\eta \in \{0.05, 0.10, 0.20\}$ of training labels.
+      \item For each $\eta$, train AdaBoost (100 stumps) and Random Forest (100 trees) on corrupted data; evaluate on clean test set.
+      \item Plot accuracy degradation curves. Discuss which is more sensitive and relate to bias-variance profiles.
+    \end{itemize}
+  \item \textbf{Bias--variance decomposition.}
+    \begin{itemize}
+      \item Select one balanced binary dataset. Generate $B=100$ bootstrap replicates from training data.
+      \item For each replicate train the model; evaluate on a large fixed test set.
+      \item Compute bias$^2$ and variance as per definitions in Breiman (1996).
+      \item Present as a table or bar chart. Explain how boosting reduces bias while bagging reduces variance.
+    \end{itemize}
+  \item \textbf{Unsupervised analysis.}
+    \begin{itemize}
+      \item Scree plot; choose PCs capturing $\ge 90\%$ variance.
+      \item 2D PCA scatter plots colored by true class, K-Means clusters, and DBSCAN clusters.
+      \item Report ARI for K-Means (best $k$) and DBSCAN (best $\varepsilon$). Include k-distance plot.
+      \item Discuss alignment of clusters with class boundaries and correlation with classifier performance.
+    \end{itemize}
+\end{enumerate}
+% =====================================================================
+\section{Project Format}\label{sec:format}
+\subsection{Teams}
+Teams of 3 students (2 or 4 with prior written approval). Email group composition and dataset choices to \textbf{sultan.musayeva@aiacademy.az} by \textbf{Day 2} (June 23, 23:59 UTC+4).
+\subsection{Repository structure}
+\begin{lstlisting}[style=python,language=bash,numbers=none,basicstyle=\ttfamily\small]
+team-<name>/
+|-- README.md                     # setup, dependencies, how to run
+|-- requirements.txt              # pinned versions
+|-- .gitignore
+|-- src/
+|   |-- __init__.py
+|   |-- trees/
+|   |   |-- decision_tree.py
+|   |   |-- adaboost.py
+|   |   `-- random_forest.py
+|   |-- unsupervised/
+|   |   |-- pca.py
+|   |   |-- kmeans.py
+|   |   `-- dbscan.py
+|   `-- experiments/
+|       |-- run_all.py
+|       `-- utils.py
+|-- tests/
+|-- notebooks/
+|-- figures/
+|-- data/                         # .gitignore large files; include download_data.sh
+|-- report/
+|   |-- report.tex
+|   `-- report.pdf
+`-- presentation/
+    `-- presentation.pdf          # slide deck (mandatory)
+\end{lstlisting}
+% =====================================================================
+\section{Deliverables}\label{sec:deliverables}
+\begin{enumerate}[topsep=2pt,itemsep=4pt,leftmargin=2.2em]
+  \item \textbf{GitHub repository} tagged \texttt{v1.0-final}. Must include source code, tests, \texttt{requirements.txt}, and \texttt{README.md} with one-command reproduction (\texttt{python src/experiments/run\_all.py}).
+  \item \textbf{IEEE-style paper} (\texttt{report/report.pdf}) in two-column format, \textbf{6--8 pages} (excluding references and back matter). Every claim must be backed by a table/figure.
+  \item \textbf{Professional slide deck} (\texttt{presentation/presentation.pdf}). A 10--12 slide presentation (PDF) summarizing the project's motivation, methods, experiments, results, and conclusions. Must be submitted to Moodle prior to the defense.
+  \item \textbf{Paper defense.} Group oral presentation and examination. Each team gives a 10-minute presentation using their prepared slides, followed by a 10--12 minute Q\&A session with the instructor. Individual understanding will be assessed during the Q\&A.
+\end{enumerate}
+\begin{warnbox}[Slide Deck Guidelines]
+Your slide deck is a key deliverable. It should be visually consistent, professional, and data-driven. Avoid text-heavy slides; use well-designed figures, tables, and concise bullet points. Submit the final PDF to Moodle before the defense. The slide deck will be graded according to the rubric.
+\end{warnbox}
+% =====================================================================
+\section{Contribution Report}\label{sec:contribution}
+To ensure fair assessment of individual contributions, each team must submit a \textbf{contribution report} detailing the specific work performed by each member.
+\begin{itemize}
+  \item The report should be a separate PDF document named \texttt{contribution\_report.pdf} placed in the root of the repository and submitted to Moodle.
+  \item It must include a table with columns: \texttt{Member Name}, \texttt{Modules/Code Sections}, \texttt{Report Sections}, \texttt{Experiments}, \texttt{Slides}, \texttt{Other Tasks}. Each member should provide a concise description of their contributions in each area.
+  \item The report must be signed (or electronically agreed) by all team members to confirm its accuracy.
+\end{itemize}
+\textbf{Verification.} The instructor will cross-check the contribution report against GitHub commit statistics (lines added/removed, number of commits, and commit messages). Severe discrepancies between reported contributions and Git history will be investigated.
+\begin{warnbox}[Penalty for Mismatch or Imbalance]
+If a team member's reported contribution is found to be significantly misrepresented, or if the division of work is grossly imbalanced (e.g., one member does $>70\%$ of the work and the others barely contribute), the following penalties will apply:
+\begin{itemize}
+  \item \warn{−5 points} for the entire team if the contribution report is missing or submitted late.
+  \item \warn{−8 points} for a member who cannot substantiate their claimed contributions.
+  \item In cases of severe imbalance, individual grades may be adjusted to reflect actual contributions; the total team grade may also be reduced.
+\end{itemize}
+\end{warnbox}
+The contribution report will be considered a mandatory part of the project deliverables. It will also be used during the defense to guide questions about individual understanding of each module.
+% =====================================================================
+\section{Grading Rubric}\label{sec:rubric}
+Total: \textbf{100 points} (Code 45\%, Report 25\%, Presentation 10\%, Defense 20\%).
+\begin{center}\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{4.8cm} c >{\raggedright\arraybackslash}p{8.2cm}}
+\toprule
+\textbf{Criterion} & \textbf{Weight} & \textbf{Detailed expectations}\\
+\midrule
+\multicolumn{3}{l}{\color{accent}\textbf{Code -- 45\%}}\\[2pt]
+Correctness of implementations & 18\% & Within 2\% of sklearn baselines. All unit tests pass. No sklearn ensemble classes used.\\
+Code quality \& design & 9\% & OOP, type hints, docstrings, no magic numbers. \texttt{mypy} or \texttt{pyright} run.\\
+Unsupervised pipeline & 9\% & PCA, K-Means, DBSCAN correct, required visualizations produced. ARI reported.\\
+Testing & 9\% & \texttt{pytest} $\ge 60\%$ coverage; edge cases; deterministic with \texttt{random\_state}.\\[6pt]
+\multicolumn{3}{l}{\color{accent}\textbf{Report -- 25\%}}\\[2pt]
+Experimental rigor & 10\% & All 7 experiments present; cross-validation correct; bias-variance decomposition; noise experiment; tables/figures match code.\\
+Conceptual depth & 9\% & Correct explanations of AdaBoost weight update, bootstrapping, Gini, cluster--classification relationship. Answers central question with evidence.\\
+Clarity \& format & 6\% & IEEE format, page limits, proper citations, no leftover template text.\\[6pt]
+\multicolumn{3}{l}{\color{accent}\textbf{Presentation -- 10\%}}\\[2pt]
+Slide design & 3\% & Professional layout, consistent theme, readable fonts, no clutter.\\
+Data visualization & 3\% & Clear, accurate figures. Captions and axes labeled.\\
+Content organization & 4\% & Logical flow, covers all key aspects (motivation, methods, results, conclusion), meets time limit.\\[6pt]
+\multicolumn{3}{l}{\color{accent}\textbf{Defense -- 20\%}}\\[2pt]
+Individual understanding & 12\% & Can explain and defend any part of the code. Can derive AdaBoost weight update.\\
+Depth of analysis & 5\% & Reasons about failure modes, proposes improvements, explains tradeoffs.\\
+Clarity under pressure & 3\% & Precise, concise, handles follow-up questions.\\
+\bottomrule
+\end{tabular}
+\end{center}
+\subsection{Automatic deductions}
+\begin{itemize}[topsep=2pt,itemsep=1pt]
+  \item Using \texttt{sklearn.tree.DecisionTreeClassifier} or \texttt{sklearn.ensemble.*} as your implementation: \warn{$-25$ pts}.
+  \item Team member unable to explain own module: \warn{$-8$ pts per module}.
+  \item Hard-coded file paths or magic constants: $-5$ pts.
+  \item Test suite below 60\% coverage: $-5$ pts.
+  \item \texttt{TODO}/\texttt{FIXME} in final code: $-3$ pts.
+  \item Missing \texttt{run\_all.py} or non-reproducible figures: $-5$ pts.
+  \item Report outside 6--8 page limit (excluding references): $-3$ pts.
+  \item Missing slide deck or non-submission prior to defense: $-5$ pts.
+  \item Missing contribution report or late submission: \warn{$-5$ pts} (team deduction).
+  \item Contribution report inconsistencies (as per \S\ref{sec:contribution}): individual and/or team penalties.
+\end{itemize}
+% =====================================================================
+\section{Advanced Bonuses (Optional)}\label{sec:bonuses}
+Up to \textbf{+10 bonus points}. Each bonus must be documented and tested.
+\begin{center}\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{5.2cm} >{\centering\arraybackslash}p{1.3cm} >{\raggedright\arraybackslash}p{8.8cm}}
+\toprule
+\textbf{Bonus} & \textbf{Points} & \textbf{What we look for}\\
+\midrule
+Gradient Boosting (GBM) & +4 & Basic GBM with log-loss, comparison against AdaBoost.\\
+t-SNE visualization & +2 & Implement or use sklearn t-SNE; compare with PCA, explain differences.\\
+Multiclass AdaBoost (SAMME.R) & +2 & Real-valued variant, improved calibration on multi-class.\\
+GitHub Actions CI & +1 & Lint + type-check + test on every PR. Coverage gate at 60\%.\\
+Interactive figure notebook & +1 & \texttt{notebooks/exploration.ipynb} with sliders and live plots.\\
+\bottomrule
+\end{tabular}
+\end{center}
+% =====================================================================
+\section{What You May NOT Do}
+\begin{itemize}[topsep=2pt,itemsep=1pt]
+  \item Do not use \texttt{sklearn}'s \texttt{DecisionTreeClassifier}, \texttt{AdaBoostClassifier}, or \texttt{RandomForestClassifier} as implementations.
+  \item Do not use \texttt{xgboost}, \texttt{lightgbm}, \texttt{catboost} for the main experiments.
+  \item Do not share code between teams.
+  \item AI-assisted coding must be disclosed; you must be able to defend every line.
+\end{itemize}
+% =====================================================================
+\section{Academic Integrity}
+Two rules for AI tools:
+\begin{enumerate}[topsep=2pt,itemsep=2pt,leftmargin=2.2em]
+  \item You must understand and be able to defend every line.
+  \item Disclose substantial AI assistance in the report's ``Tools \& Acknowledgements'' section.
+\end{enumerate}
+Plagiarism detection will be run across all repositories.
+% =====================================================================
+\section{Self-Assessment Checklist}
+Before tagging \texttt{v1.0-final}:
+\begin{rubricbox}
+\textbf{Implementations}\\
+$\square$ \texttt{DecisionTree} matches sklearn within 2\%.\\
+$\square$ \texttt{AdaBoostClassifier} weight update follows Freund \& Schapire (1997).\\
+$\square$ \texttt{RandomForestClassifier} OOB score computed.\\
+$\square$ \texttt{PCA}, \texttt{KMeans}, \texttt{DBSCAN} all implemented without sklearn (except ARI).\\
+\smallskip\textbf{Experiments}\\
+$\square$ All 7 experiments in \S\ref{sec:experiments} reproducible via \texttt{run\_all.py}.\\
+$\square$ Bias-variance decomposition present.\\
+$\square$ Noise robustness includes 5\%, 10\%, 20\% levels.\\
+$\square$ K-distance plot; $\varepsilon$ justified.\\
+\smallskip\textbf{Code quality}\\
+$\square$ \texttt{pytest --cov} $\ge 60\%$.\\
+$\square$ \texttt{mypy} or \texttt{pyright} run; result noted.\\
+$\square$ No \texttt{TODO} or \texttt{FIXME}.\\
+$\square$ All random operations seeded via \texttt{random\_state}.\\
+\smallskip\textbf{Report}\\
+$\square$ 6--8 pages, IEEE format.\\
+$\square$ All required reading cited.\\
+$\square$ Every figure has a caption; every table has a header.\\
+$\square$ No leftover template text.\\
+\smallskip\textbf{Presentation}\\
+$\square$ Slide deck (10-12 slides) submitted as \texttt{presentation.pdf}.\\
+$\square$ Professional design and consistent theme.\\
+$\square$ Figures, tables, and visualizations are clear and sourced from report code.\\
+\smallskip\textbf{Contribution Report}\\
+$\square$ \texttt{contribution\_report.pdf} placed in root directory and submitted to Moodle.\\
+$\square$ All members have reviewed and signed the report.\\
+\smallskip\textbf{Defense readiness}\\
+$\square$ Every member can derive AdaBoost weight update.\\
+$\square$ Every member can walk through their module.\\
+$\square$ Every member can interpret every figure.\\
+$\square$ Every member has completed the required reading.
+\end{rubricbox}
+\vspace{1.4em}
+\hrule\vspace{0.6em}
+\noindent\small\textit{Implement it cleanly. Test it rigorously. Present it professionally. Understand it deeply.}
+\end{document}
