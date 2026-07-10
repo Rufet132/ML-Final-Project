@@ -179,8 +179,8 @@ class DecisionTree:
         self.classes_: Optional[np.ndarray] = None
         self.n_features_: Optional[int] = None
         self._n_classes: int = 0
-        self._rng: Optional[np.random.Generator] = None
-        self._importances: Optional[np.ndarray] = None
+        self._rng: np.random.Generator = np.random.default_rng(random_state)
+        self._importances: np.ndarray = np.zeros(0, dtype=np.float64)
         self._total_weight: float = 0.0
 
     # ------------------------------------------------------------------ #
@@ -248,6 +248,7 @@ class DecisionTree:
             prediction deterministic.
         """
         proba = self.predict_proba(X)
+        assert self.classes_ is not None  # guaranteed once predict_proba ran
         return self.classes_[np.argmax(proba, axis=1)]
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
@@ -268,23 +269,21 @@ class DecisionTree:
         np.ndarray
             Array of shape ``[n_samples, n_classes]`` whose rows sum to 1.
         """
-        self._check_fitted()
+        root = self._check_fitted()
         X = self._validate_predict_inputs(X)
         proba = np.empty((X.shape[0], self._n_classes), dtype=np.float64)
-        self._route(self.root_, X, np.arange(X.shape[0]), proba)
+        self._route(root, X, np.arange(X.shape[0]), proba)
         return proba
 
     @property
     def depth(self) -> int:
         """Depth of the fitted tree (a single-leaf tree has depth 0)."""
-        self._check_fitted()
-        return self._subtree_depth(self.root_)
+        return self._subtree_depth(self._check_fitted())
 
     @property
     def n_leaves(self) -> int:
         """Number of leaves in the fitted tree."""
-        self._check_fitted()
-        return self._subtree_leaves(self.root_)
+        return self._subtree_leaves(self._check_fitted())
 
     def feature_importances(self) -> np.ndarray:
         """Return normalized impurity-based feature importances.
@@ -464,6 +463,7 @@ class DecisionTree:
         lowest feature index.
         """
         n_features = self.n_features_
+        assert n_features is not None  # set by fit before any split search
         if self.max_features is None:
             return np.arange(n_features)
         if self.max_features == MAX_FEATURES_SQRT:
@@ -507,7 +507,7 @@ class DecisionTree:
     def _distribution(self, y: np.ndarray, w: np.ndarray) -> np.ndarray:
         """Weighted class probability distribution for a node's samples."""
         counts = np.bincount(y, weights=w, minlength=self._n_classes)
-        return counts / max(counts.sum(), EPSILON)
+        return counts / max(float(counts.sum()), EPSILON)
 
     # ------------------------------------------------------------------ #
     # Prediction helpers
@@ -526,6 +526,7 @@ class DecisionTree:
         if node.is_leaf:
             out[indices] = node.value
             return
+        assert node.left is not None and node.right is not None
         goes_left = X[indices, node.feature_index] <= node.threshold
         self._route(node.left, X, indices[goes_left], out)
         self._route(node.right, X, indices[~goes_left], out)
@@ -538,6 +539,7 @@ class DecisionTree:
         """Depth of the subtree rooted at ``node`` (leaf => 0)."""
         if node.is_leaf:
             return 0
+        assert node.left is not None and node.right is not None
         return 1 + max(
             self._subtree_depth(node.left), self._subtree_depth(node.right)
         )
@@ -546,10 +548,12 @@ class DecisionTree:
         """Number of leaves in the subtree rooted at ``node``."""
         if node.is_leaf:
             return 1
+        assert node.left is not None and node.right is not None
         return self._subtree_leaves(node.left) + self._subtree_leaves(node.right)
 
     def _render(self, node: Node, level: int, lines: List[str]) -> None:
         """Append the indented text rendering of ``node`` to ``lines``."""
+        assert node.value is not None  # every fitted node has a distribution
         impurity = self._impurity(
             node.value[np.newaxis, :], np.asarray([1.0])
         )[0]
@@ -566,6 +570,7 @@ class DecisionTree:
             f"{self.criterion}={impurity:.4f} | samples={node.samples} | "
             f"dist={distribution}"
         )
+        assert node.left is not None and node.right is not None
         self._render(node.left, level + 1, lines)
         self._render(node.right, level + 1, lines)
 
@@ -573,13 +578,14 @@ class DecisionTree:
     # Validation helpers
     # ------------------------------------------------------------------ #
 
-    def _check_fitted(self) -> None:
-        """Raise if the estimator has not been fitted yet."""
+    def _check_fitted(self) -> Node:
+        """Return the fitted root node, raising if fit was never called."""
         if self.root_ is None:
             raise RuntimeError(
                 "This DecisionTree instance is not fitted yet; "
                 "call fit(X, y) before using this method."
             )
+        return self.root_
 
     def _validate_fit_inputs(
         self,
