@@ -1,24 +1,50 @@
+"""AdaBoost (discrete SAMME) with decision stumps as weak learners.
+
+Built on top of the team's ``DecisionTree`` (see ``decision_tree.py``), which
+already supports ``sample_weight`` and weighted Gini/entropy natively — no
+modifications to that module were needed for this file.
+
+Implements the algorithm from Freund & Schapire (1997), generalised to
+K >= 2 classes via the SAMME weight update (Zhu et al., 2009):
+
+    alpha_m = ln((1 - eps_m) / eps_m) + ln(K - 1)
+
+which reduces to the classic alpha_m = ln((1-eps_m)/eps_m) for K = 2.
+"""
+
 from __future__ import annotations
 
 from typing import Iterator, List, Optional
+
 import numpy as np
 
 from src.trees.decision_tree import DecisionTree
 
 
 class DecisionStump(DecisionTree):
-    """A depth-1 decision tree (single binary split) used as a weak learner."""
+    """Convenience subclass: a depth-1 decision tree (a single binary split)."""
 
     def __init__(self, criterion: str = "gini", random_state: Optional[int] = None) -> None:
         super().__init__(max_depth=1, criterion=criterion, random_state=random_state)
 
 
 class AdaBoostClassifier:
-    """Discrete SAMME AdaBoost implementation using decision stumps.
-    
-    Implements multi-class boosting as described in Zhu et al. (2009).
+    """Discrete SAMME AdaBoost using ``DecisionStump`` weak learners.
+
+    Attributes:
+        n_estimators: Maximum number of boosting rounds requested.
+        learning_rate: Shrinkage applied to each estimator's alpha
+            (``effective_alpha = learning_rate * alpha``), analogous to
+            sklearn's ``AdaBoostClassifier``. Smaller values require more
+            estimators but tend to generalise better.
+        criterion: Impurity criterion passed to each stump ("gini"/"entropy").
+        random_state: Seed for reproducibility. Round ``m`` seeds its stump
+            with ``random_state + m`` (only when random_state is not None),
+            so re-running fit() with the same seed reproduces the exact
+            same sequence of stumps and weight trajectories.
     """
 
+    # Error below which we clip to avoid division by zero / log(0) in alpha.
     _EPSILON_CLIP = 1e-10
 
     def __init__(
@@ -41,9 +67,25 @@ class AdaBoostClassifier:
         self._estimators: List[DecisionStump] = []
         self._alphas: List[float] = []
         self._errors: List[float] = []
-        self._classes: Optional[np.ndarray] = None
+        self._classes: Optional[np.ndarray] = None  # sorted original label values
 
+    # ------------------------------------------------------------------
+    # Fitting
+    # ------------------------------------------------------------------
     def fit(self, X: np.ndarray, y: np.ndarray) -> "AdaBoostClassifier":
+        """Fit the ensemble.
+
+        Args:
+            X: Feature matrix, shape (n_samples, n_features).
+            y: Class labels, shape (n_samples,). Any encoding is accepted
+                (e.g. {0,1}, {-1,+1}, or arbitrary K classes). Each stump's
+                own ``fit`` re-derives ``classes_`` from this same full
+                label set every round (only the weights change round to
+                round), so every stump's ``classes_`` matches
+                ``self._classes`` exactly -- that invariant is what lets
+                ``stump.predict(X)`` be mapped straight into the vote
+                matrix via ``np.searchsorted`` below.
+        """
         X = np.asarray(X, dtype=np.float64)
         y = np.asarray(y)
 
@@ -52,41 +94,71 @@ class AdaBoostClassifier:
         if X.shape[0] == 0:
             raise ValueError("Cannot fit on an empty dataset")
 
-        self._classes, y_encoded = np.unique(y, return_inverse=True)
+        self._classes = np.unique(y)
         n_classes = len(self._classes)
         if n_classes < 2:
             raise ValueError("AdaBoostClassifier requires at least 2 classes")
-
         n_samples = X.shape[0]
+
         self._estimators = []
         self._alphas = []
         self._errors = []
 
+        # Step 1: initialize uniform sample weights w_i = 1/N.
         sample_weight = np.full(n_samples, 1.0 / n_samples, dtype=np.float64)
 
         for m in range(self.n_estimators):
-            seed = self.random_state + m if self.random_state is not None else None
-            stump = DecisionStump(criterion=self.criterion, random_state=seed)
+            stump_seed = (
+                self.random_state + m if self.random_state is not None else None
+            )
+            stump = DecisionStump(criterion=self.criterion, random_state=stump_seed)
 
-            stump.fit(X, y_encoded, sample_weight=sample_weight)
-            predictions = stump.predict(X)
-            incorrect = predictions != y_encoded
+            # Step 2: train a weighted stump. DecisionTree's weighted Gini
+            # / entropy (see decision_tree.py: _impurity, _distribution)
+            # makes the split search "listen" harder to samples the
+            # ensemble is currently getting wrong.
+            stump.fit(X, y, sample_weight=sample_weight)
+            predictions = stump.predict(X)  # original label space
+            incorrect = predictions != y
 
+            # Step 3: weighted error.
             err = np.sum(sample_weight * incorrect) / np.sum(sample_weight)
 
-            # Avoid division by zero if a stump achieves perfect classification
+            # Step 4: edge cases.
+            # eps == 0 -> the stump is "too good": ln(0) would blow up alpha
+            # to infinity. Clipping to a tiny epsilon keeps alpha large but
+            # finite, so this near-perfect stump still gets an (enormous
+            # but valid) vote instead of crashing training.
             if err <= 0:
                 err = self._EPSILON_CLIP
-            
-            # Stop early if the weak learner is no better than random guessing
             if err >= 0.5:
+                # eps >= 0.5 means the weak learner is no better than (or
+                # worse than) random guessing on K=2, i.e. it has stopped
+                # contributing signal. SAMME's alpha formula would assign
+                # it zero or negative weight, and continuing to reweight
+                # samples based on a non-informative learner just injects
+                # noise. We stop early and return the ensemble built so
+                # far, matching sklearn's AdaBoostClassifier behaviour.
+                # (Alternative, spec-permitted behaviour: raise
+                # ValueError instead of a silent early stop -- not used
+                # here so that staged_predict / experiments over
+                # n_estimators degrade gracefully rather than crashing.)
                 break
 
-            # Discrete SAMME weight update
-            alpha = self.learning_rate * (np.log((1.0 - err) / err) + np.log(n_classes - 1))
+            # Step 5 (SAMME): alpha_m = ln((1-eps)/eps) + ln(K-1).
+            # For K=2, ln(K-1) = ln(1) = 0, recovering the classic binary
+            # AdaBoost formula. The ln(K-1) term is what keeps a "better
+            # than random" (1/K accuracy) learner's alpha positive for
+            # K > 2, since binary-style eps < 0.5 alone isn't the right
+            # threshold once there are more than 2 classes to guess among.
+            alpha = self.learning_rate * (np.log((1 - err) / err) + np.log(n_classes - 1))
 
-            # Up-weight misclassified samples and renormalize
-            sample_weight *= np.exp(alpha * incorrect)
+            # Step 6: reweight -- up-weight misclassified samples by
+            # exp(alpha), leave correctly-classified samples unchanged,
+            # then renormalize so weights remain a valid distribution.
+            # This is what forces the *next* stump to focus on the
+            # samples the ensemble-so-far still gets wrong.
+            sample_weight = sample_weight * np.exp(alpha * incorrect)
             sample_weight /= sample_weight.sum()
 
             self._estimators.append(stump)
@@ -100,35 +172,49 @@ class AdaBoostClassifier:
 
         return self
 
+    # ------------------------------------------------------------------
+    # Prediction
+    # ------------------------------------------------------------------
     def predict(self, X: np.ndarray) -> np.ndarray:
+        """Weighted majority vote: argmax_k sum_m alpha_m * 1[h_m(x) = k]."""
         self._check_is_fitted()
         votes = self._weighted_votes(X)
         winning_encoded = np.argmax(votes, axis=1)
         return self._classes[winning_encoded]
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
-        """Estimate class probabilities using a softmax over weighted votes."""
+        """Softmax over per-class alpha-sums.
+
+        Discrete SAMME does not natively produce calibrated probabilities
+        (it only ever casts a hard vote per estimator). We convert the
+        weighted-vote totals into a probability distribution via softmax:
+        classes with a larger accumulated alpha get exponentially more
+        probability mass, and softmax guarantees a valid distribution
+        (non-negative, sums to 1) even when raw alpha-sums are negative
+        or wildly different in scale.
+        """
         self._check_is_fitted()
         votes = self._weighted_votes(X)
-        
-        # Shift by max for numerical stability before exponentiation
-        shifted = votes - votes.max(axis=1, keepdims=True)
+        shifted = votes - votes.max(axis=1, keepdims=True)  # numerical stability
         exp_votes = np.exp(shifted)
         return exp_votes / exp_votes.sum(axis=1, keepdims=True)
 
     def staged_predict(self, X: np.ndarray) -> Iterator[np.ndarray]:
-        """Yield predictions after each boosting round."""
+        """Yield predictions after each boosting round (1..M so far)."""
         self._check_is_fitted()
         X = np.asarray(X, dtype=np.float64)
         n_classes = len(self._classes)
         votes = np.zeros((X.shape[0], n_classes), dtype=np.float64)
 
         for stump, alpha in zip(self._estimators, self._alphas):
-            predictions = stump.predict(X)
-            votes[np.arange(X.shape[0]), predictions] += alpha
+            class_indices = np.searchsorted(self._classes, stump.predict(X))
+            votes[np.arange(X.shape[0]), class_indices] += alpha
             winning_encoded = np.argmax(votes, axis=1)
             yield self._classes[winning_encoded]
 
+    # ------------------------------------------------------------------
+    # Introspection
+    # ------------------------------------------------------------------
     @property
     def estimator_weights(self) -> np.ndarray:
         return np.array(self._alphas)
@@ -137,15 +223,25 @@ class AdaBoostClassifier:
     def estimator_errors(self) -> np.ndarray:
         return np.array(self._errors)
 
+    # ------------------------------------------------------------------
+    # Internals
+    # ------------------------------------------------------------------
     def _weighted_votes(self, X: np.ndarray) -> np.ndarray:
+        """Accumulate alpha-weighted votes per class.
+
+        ``self._classes`` is sorted (np.unique guarantees this), and every
+        stump was fit on the same full label set each round, so
+        ``stump.classes_`` always equals ``self._classes``. That means a
+        stump's raw label predictions can be mapped directly to vote-matrix
+        columns via ``np.searchsorted`` without keeping a separate
+        per-stump class mapping.
+        """
         X = np.asarray(X, dtype=np.float64)
         n_classes = len(self._classes)
         votes = np.zeros((X.shape[0], n_classes), dtype=np.float64)
-        
         for stump, alpha in zip(self._estimators, self._alphas):
-            predictions = stump.predict(X)
-            votes[np.arange(X.shape[0]), predictions] += alpha
-            
+            class_indices = np.searchsorted(self._classes, stump.predict(X))
+            votes[np.arange(X.shape[0]), class_indices] += alpha
         return votes
 
     def _check_is_fitted(self) -> None:
