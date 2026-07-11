@@ -7,7 +7,7 @@ import numpy as np
 import pytest
  
 from src.trees.decision_tree import DecisionTree
-from src.trees.adaboost import DecisionStump, AdaBoostClassifier
+from src.boosting.adaboost import DecisionStump, AdaBoostClassifier
  
  
 # ----------------------------------------------------------------------
