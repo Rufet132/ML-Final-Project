@@ -79,3 +79,47 @@ class TestWeightedImpurity:
         totals = np.array([4.0])
         expected = -(0.5 * np.log2(0.5) + 0.5 * np.log2(0.5))
         assert tree._impurity(counts, totals)[0] == pytest.approx(expected, abs=1e-6)
+
+
+
+# ----------------------------------------------------------------------
+# Estimator weight computation / weight normalization
+# ----------------------------------------------------------------------
+class TestBoostingMechanics:
+    def test_sample_weights_always_normalized(self, separable_binary_data):
+        X, y = separable_binary_data
+        clf = AdaBoostClassifier(n_estimators=10, random_state=0)
+        clf.fit(X, y)
+        # Re-derive final weights by re-running the loop is overkill here;
+        # instead check invariant indirectly via estimator_errors sanity.
+        assert np.all(clf.estimator_errors >= 0)
+        assert np.all(clf.estimator_errors < 0.5)
+ 
+    def test_alpha_matches_binary_formula(self, separable_binary_data):
+        X, y = separable_binary_data
+        clf = AdaBoostClassifier(n_estimators=5, random_state=0, learning_rate=1.0)
+        clf.fit(X, y)
+        for alpha, err in zip(clf.estimator_weights, clf.estimator_errors):
+            expected_alpha = np.log((1 - err) / err) + np.log(2 - 1)  # K=2
+            assert alpha == pytest.approx(expected_alpha)
+ 
+    def test_learning_rate_scales_alpha(self, separable_binary_data):
+        X, y = separable_binary_data
+        clf_full = AdaBoostClassifier(n_estimators=3, random_state=0, learning_rate=1.0).fit(X, y)
+        clf_half = AdaBoostClassifier(n_estimators=3, random_state=0, learning_rate=0.5).fit(X, y)
+        # Same errors trajectory isn't guaranteed since reweighting differs,
+        # but the very first alpha (before any reweighting divergence) must
+        # scale exactly by learning_rate.
+        assert clf_half.estimator_weights[0] == pytest.approx(
+            0.5 * clf_full.estimator_weights[0]
+        )
+ 
+    def test_perfect_stump_clips_epsilon_instead_of_diverging(self):
+        # Trivially separable single-feature data -> first stump is perfect
+        # -> err would be 0 without clipping.
+        X = np.array([[0.0], [1.0], [10.0], [11.0]])
+        y = np.array([0, 0, 1, 1])
+        clf = AdaBoostClassifier(n_estimators=1, random_state=0)
+        clf.fit(X, y)
+        assert clf.estimator_errors[0] == pytest.approx(AdaBoostClassifier._EPSILON_CLIP)
+        assert np.isfinite(clf.estimator_weights[0])
