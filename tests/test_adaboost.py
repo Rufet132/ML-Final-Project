@@ -1,6 +1,5 @@
 """Tests for Module 2: DecisionStump / AdaBoostClassifier.
 
-Run with: pytest tests/test_adaboost.py -v
 """
 
 import numpy as np
