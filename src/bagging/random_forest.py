@@ -96,7 +96,7 @@ class RandomForestClassifier:
 		}
 
 		jobs = [
-			(X, y, {**tree_params, "bootstrap": self.bootstrap}, int(tree_seed), len(X))
+			(X, y, {**tree_params, "bootstrap": self.bootstrap, "random_state": int(tree_seed)}, int(tree_seed), len(X))
 			for tree_seed in tree_seeds
 		]
 
