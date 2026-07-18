@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Test / tooling caches
+.coverage
+.pytest_cache/
+.mypy_cache/
+
+# Large datasets (fetched via download_data.sh or sklearn cache)
+data/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.synctex.gz
