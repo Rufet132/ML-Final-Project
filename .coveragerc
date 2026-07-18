@@ -1,0 +1,14 @@
+# Coverage is measured over the library modules (models, metrics,
+# preprocessing) plus the tested unsupervised pipeline. The experiment
+# driver scripts are excluded: they are figure-producing study runners
+# reproduced via run_all.py, not library code exercised by unit tests.
+[run]
+omit =
+    src/experiments/run_all.py
+    src/experiments/utils.py
+    src/experiments/baseline.py
+    src/experiments/adaboost_scaling.py
+    src/experiments/rf_scaling.py
+    src/experiments/head_to_head.py
+    src/experiments/noise_robustness.py
+    src/experiments/bias_variance.py
