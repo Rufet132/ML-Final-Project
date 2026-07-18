@@ -181,6 +181,8 @@ def _validate_matrix(X: np.ndarray, allow_nan: bool = False) -> np.ndarray:
     X = np.asarray(X, dtype=float)
     if X.ndim != 2 or X.shape[0] == 0 or X.shape[1] == 0:
         raise ValueError("X must be a non-empty 2-dimensional array")
-    if not allow_nan and not np.all(np.isfinite(X)):
+    if np.any(np.isinf(X)):
+        raise ValueError("X must not contain infinite values")
+    if not allow_nan and np.any(np.isnan(X)):
         raise ValueError("X must contain only finite values")
     return X

@@ -84,8 +84,12 @@ def roc_auc_score(y_true: np.ndarray, y_score: np.ndarray) -> float:
     """
     y_true = np.asarray(y_true)
     y_score = np.asarray(y_score, dtype=float)
+    if y_score.ndim not in (1, 2):
+        raise ValueError("y_score must be a 1-D score array or 2-D probability matrix")
     if y_true.ndim != 1 or y_true.shape[0] != y_score.shape[0]:
         raise ValueError("y_true and y_score must have one entry per sample")
+    if not np.all(np.isfinite(y_score)):
+        raise ValueError("y_score must contain only finite values")
 
     classes = np.unique(y_true)
     if classes.size < 2:
