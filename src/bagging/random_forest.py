@@ -157,8 +157,14 @@ class RandomForestClassifier:
 
         if X.ndim != 2:
             raise ValueError("X must be a 2D array")
+        if y.ndim != 1:
+            raise ValueError("y must be a 1D array")
         if len(X) != len(y):
             raise ValueError("X and y must have the same number of samples")
+        if X.shape[0] == 0 or X.shape[1] == 0:
+            raise ValueError("X must contain at least one sample and one feature")
+        if not np.all(np.isfinite(X)):
+            raise ValueError("X must contain only finite values")
 
         self.n_features_in_ = X.shape[1]
         self.classes_ = np.unique(y)
