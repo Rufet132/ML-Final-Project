@@ -115,6 +115,12 @@ class RandomForestClassifier:
         random_state: int | None = None,
         class_weight: str | None = None,
     ) -> None:
+        if n_estimators < 1:
+            raise ValueError("n_estimators must be >= 1")
+        if n_jobs < 1:
+            raise ValueError("n_jobs must be >= 1")
+        if oob_score and not bootstrap:
+            raise ValueError("oob_score requires bootstrap=True")
         if class_weight not in (None, "balanced"):
             raise ValueError('class_weight must be None or "balanced"')
         self.n_estimators = n_estimators
