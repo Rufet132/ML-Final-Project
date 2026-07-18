@@ -1,6 +1,11 @@
 name: ML Project CI
 
 on:
+  push:
+    branches:
+      - main
+      - develop
+      - "feature/**"
   pull_request:
     branches:
       - main
@@ -32,7 +37,7 @@ jobs:
 
     - name: Type check with mypy
       run: |
-        mypy src/trees/ --ignore-missing-imports
+        mypy src/ --ignore-missing-imports
 
     - name: Test with pytest and coverage (Gate at 60%)
       run: |

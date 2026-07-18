@@ -12,7 +12,7 @@ from src.unsupervised.kmeans import KMeans
 from src.unsupervised.pca import PCA
 
 
-DEFAULT_FIGURES_DIR = Path(__file__).resolve().parents[1] / "figures"
+DEFAULT_FIGURES_DIR = Path(__file__).resolve().parents[2] / "figures"
 
 
 def _safe_name(name: str) -> str:
@@ -44,6 +44,7 @@ def run_pca_analysis(X: np.ndarray, y: np.ndarray, dataset_name: str,
     name = _safe_name(dataset_name)
 
     full_pca = PCA(n_components=X.shape[1]).fit(X)
+    assert full_pca.explained_variance_ratio_ is not None  # set by fit
     cumulative = np.cumsum(full_pca.explained_variance_ratio_)
     reached = np.flatnonzero(cumulative >= 0.90)
     components_90 = int(reached[0] + 1) if reached.size else X.shape[1]
@@ -116,8 +117,9 @@ def run_kmeans_analysis(X: np.ndarray, y: np.ndarray, projection: np.ndarray,
     for k in k_values:
         candidates = [KMeans(int(k), random_state=random_state + restart).fit(X)
                       for restart in range(n_restarts)]
-        best = min(candidates, key=lambda model: float(model.inertia_))
+        best = min(candidates, key=lambda model: float(model.inertia_ or 0.0))
         best_models.append(best)
+        assert best.inertia_ is not None  # set by fit
         inertias.append(float(best.inertia_))
         ari_scores.append(float(adjusted_rand_score(y, best.labels_)))
 
@@ -141,6 +143,7 @@ def run_kmeans_analysis(X: np.ndarray, y: np.ndarray, projection: np.ndarray,
     fig.savefig(output / f"kmeans_elbow_{name}.png", dpi=150)
     plt.close(fig)
 
+    assert model.centroids_ is not None and model.labels_ is not None  # set by fit
     centroid_projection = pca.transform(model.centroids_)
     _plot_projection(projection, model.labels_, f"K-Means clusters (k={best_k}) — {dataset_name}",
                      "Cluster", output / f"pca_kmeans_{name}.png",
@@ -210,6 +213,7 @@ def run_dbscan_analysis(X: np.ndarray, y: np.ndarray, projection: np.ndarray,
     fig.savefig(output / f"dbscan_kdistance_{name}.png", dpi=150)
     plt.close(fig)
 
+    assert model.labels_ is not None  # set by fit
     _plot_projection(projection, model.labels_,
                      f"DBSCAN clusters (ε={best_eps:.3g}) — {dataset_name}", "Cluster",
                      output / f"pca_dbscan_{name}.png", noise_label=True)
@@ -218,6 +222,54 @@ def run_dbscan_analysis(X: np.ndarray, y: np.ndarray, projection: np.ndarray,
                "eps_values": candidates.tolist(), "ari_scores": ari_scores,
                "noise_fraction": noise_fraction}
     return model, best_eps, details
+
+
+def run_tsne_comparison(X: np.ndarray, y: np.ndarray, projection: np.ndarray,
+                        dataset_name: str, random_state: int = 42,
+                        figures_dir: Optional[Path] = None) -> dict:
+    """Bonus: t-SNE embedding rendered next to the PCA projection.
+
+    t-SNE (sklearn implementation, as the brief permits) preserves
+    *local* neighbourhoods through a non-linear embedding, while PCA is
+    the best *global* linear projection — the side-by-side figure is the
+    visual evidence for that discussion in the report.
+
+    Args:
+        X: Standardized feature matrix.
+        y: True labels used only for colouring.
+        projection: The 2-D PCA projection already computed for ``X``.
+        dataset_name: Used in titles and file names.
+        random_state: Seed passed to t-SNE for reproducibility.
+        figures_dir: Output directory (defaults to ``figures/``).
+
+    Returns:
+        Dict with the embedding and the figure path.
+    """
+    from sklearn.manifold import TSNE
+
+    X, y = _validate_inputs(X, y)
+    output = Path(figures_dir or DEFAULT_FIGURES_DIR)
+    output.mkdir(parents=True, exist_ok=True)
+    name = _safe_name(dataset_name)
+
+    perplexity = float(min(30.0, max(5.0, (X.shape[0] - 1) / 4.0)))
+    embedding = TSNE(n_components=2, random_state=random_state,
+                     init="pca", perplexity=perplexity).fit_transform(X)
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    for axis, points, title in (
+            (axes[0], projection, "PCA (first 2 components)"),
+            (axes[1], embedding, f"t-SNE (perplexity={perplexity:.0f})")):
+        scatter = axis.scatter(points[:, 0], points[:, 1], c=y,
+                               cmap="viridis", s=14, alpha=0.75)
+        axis.set_title(title)
+        axis.grid(alpha=0.2)
+    fig.colorbar(scatter, ax=axes, label="Class", shrink=0.85)
+    fig.suptitle(f"Linear vs non-linear embedding — {dataset_name}")
+    path = output / f"tsne_vs_pca_{name}.png"
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    return {"embedding": embedding, "figure": path}
 
 
 def run_unsupervised_pipeline(X: np.ndarray, y: np.ndarray, dataset_name: str,
@@ -232,6 +284,7 @@ def run_unsupervised_pipeline(X: np.ndarray, y: np.ndarray, dataset_name: str,
     dbscan, best_eps, dbscan_details = run_dbscan_analysis(
         X, y, projection, dataset_name, random_state, figures_dir)
 
+    assert pca.explained_variance_ratio_ is not None  # set by fit
     result = {
         "dataset": dataset_name,
         "n_samples": X.shape[0],

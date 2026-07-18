@@ -189,18 +189,21 @@ class AdaBoostClassifier:
         # valid) vote instead of crashing training.
         if err <= 0:
             err = self._EPSILON_CLIP
-        if err >= 0.5:
-            # eps >= 0.5 means the weak learner is no better than (or
-            # worse than) random guessing, i.e. it has stopped
-            # contributing signal. SAMME's alpha formula would assign it
-            # zero or negative weight, and continuing to reweight samples
-            # based on a non-informative learner just injects noise. We
-            # stop early and return the ensemble built so far, matching
-            # sklearn's AdaBoostClassifier behaviour. (Alternative,
-            # spec-permitted behaviour: raise ValueError instead of a
-            # silent early stop -- not used here so that staged_predict /
-            # experiments over n_estimators degrade gracefully rather
-            # than crashing.)
+        if err >= 1.0 - 1.0 / n_classes:
+            # A weak learner is only useful while it beats random
+            # guessing, which for K classes means err < 1 - 1/K (the
+            # threshold at which SAMME's alpha becomes <= 0). For K=2
+            # this is the familiar 0.5 cutoff; for K > 2 random guessing
+            # is much worse than 0.5, so a multi-class stump with, say,
+            # err = 0.6 can still carry positive alpha and must not stop
+            # training. Continuing past this threshold would assign zero
+            # or negative weight and just inject noise into the sample
+            # weights, so we stop early and keep the ensemble built so
+            # far, matching sklearn's AdaBoostClassifier behaviour.
+            # (Alternative, spec-permitted behaviour: raise ValueError
+            # instead of a silent early stop -- not used here so that
+            # staged_predict / experiments over n_estimators degrade
+            # gracefully rather than crashing.)
             return True
 
         # Step 5 (SAMME): alpha_m = ln((1-eps)/eps) + ln(K-1).
@@ -249,15 +252,16 @@ class AdaBoostClassifier:
         incorrect = predictions != y
 
         # err/estimator_errors are diagnostic only for SAMME.R (there is
-        # no eps-based formula for alpha here), but we still use the 0.5
-        # threshold as an early-stopping heuristic: a stump doing no
-        # better than the majority class contributes ~0 signal to h_m(x)
-        # and further rounds on a saturated/degenerate weight
-        # distribution tend to just add noise.
+        # no eps-based formula for alpha here), but we still use the
+        # better-than-random threshold err < 1 - 1/K as an
+        # early-stopping heuristic: a stump doing no better than random
+        # guessing contributes ~0 signal to h_m(x) and further rounds on
+        # a saturated/degenerate weight distribution tend to just add
+        # noise.
         err = np.sum(sample_weight * incorrect) / np.sum(sample_weight)
         if err <= 0:
             err = self._EPSILON_CLIP
-        if err >= 0.5:
+        if err >= 1.0 - 1.0 / n_classes:
             return True
 
         log_proba = np.log(np.clip(proba, self._PROBA_CLIP, 1.0))

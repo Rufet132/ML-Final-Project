@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.unsupervised.pca import PCA
 from src.unsupervised.kmeans import KMeans
 from src.unsupervised.dbscan import DBSCAN
-from experiments.unsupervised_analysis import run_unsupervised_pipeline
+from src.experiments.unsupervised_analysis import run_unsupervised_pipeline
 
 
 class TestPCA:
